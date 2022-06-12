@@ -24,7 +24,6 @@ def get_session():
         session.close()
 
 
-
 @app.post("/address", response_model=schemas.Address, status_code=status.HTTP_201_CREATED)
 def create_address(address: schemas.AddressCreate, session: Session = Depends(get_session)):
 
@@ -55,17 +54,22 @@ def read_address(id: int, session: Session = Depends(get_session)):
     return address
 
 
-@app.put("/address/{id}", response_model=schemas.Address)
-def update_address(id: int, adr: str, long: float, lat: float, session: Session = Depends(get_session)):
+@app.put("/address/{id}", response_model=schemas.AddressUP)
+def update_address(id: int, adr: str | None = None, lon: float | None = None, lat: float | None = None, session: Session = Depends(get_session)):
 
     # get the address item with the given id
     address = session.query(models.Address).get(id)
 
+    # If any field is left blank it'll be populated with the older values
+
     # update address item with the given task (if an item with the given id was found)
     if address:
-        address.adr = adr
-        address.long = long
-        address.lat = lat
+        if adr != None:
+            address.adr = adr
+        if lon != None:
+            address.lon = lon
+        if lat != None:
+            address.lat = lat
 
         session.commit()
 
@@ -114,10 +118,12 @@ def read_nearby_address(id: int, km: float, session: Session = Depends(get_sessi
 
     close = []
     for i in address_list:
-        distance = geopy.distance.geodesic(
-            (i.lat, i.lon), (main_lat, main_long)).km
-        if distance <= km:
-            close.append(i)
+        try:
+            distance = geopy.distance.geodesic((i.lat, i.lon), (main_lat, main_long)).km
+            if distance <= km:
+                close.append(i)
+        except ValueError:
+            pass
 
     # check if address item with given id exists. If not, raise exception and return 404 not found response
     if not address:
