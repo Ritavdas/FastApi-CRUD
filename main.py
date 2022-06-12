@@ -4,6 +4,8 @@ from database import Base, engine, SessionLocal
 from sqlalchemy.orm import Session
 import models
 import schemas
+import geopy.distance
+
 
 # Create the database
 Base.metadata.create_all(engine)
@@ -12,6 +14,8 @@ Base.metadata.create_all(engine)
 app = FastAPI()
 
 # Helper function to get database session
+
+
 def get_session():
     session = SessionLocal()
     try:
@@ -19,72 +23,106 @@ def get_session():
     finally:
         session.close()
 
-@app.get("/")
-def root():
-    return "todooo"
 
-@app.post("/todo", response_model=schemas.ToDo, status_code=status.HTTP_201_CREATED)
-def create_todo(todo: schemas.ToDoCreate, session: Session = Depends(get_session)):
 
-    # create an instance of the ToDo database model
-    tododb = models.ToDo(task = todo.task)
+@app.post("/address", response_model=schemas.Address, status_code=status.HTTP_201_CREATED)
+def create_address(address: schemas.AddressCreate, session: Session = Depends(get_session)):
+
+    # create an instance of the address database model
+    addressdb = models.Address(
+        adr=address.adr, lat=address.lat, lon=address.lon)
 
     # add it to the session and commit it
-    session.add(tododb)
+    session.add(addressdb)
     session.commit()
-    session.refresh(tododb)
+    session.refresh(addressdb)
 
-    # return the todo object
-    return tododb
+    # return the address object
+    return addressdb
 
-@app.get("/todo/{id}", response_model=schemas.ToDo)
-def read_todo(id: int, session: Session = Depends(get_session)):
 
-    # get the todo item with the given id
-    todo = session.query(models.ToDo).get(id)
+@app.get("/address/{id}", response_model=schemas.Address)
+def read_address(id: int, session: Session = Depends(get_session)):
 
-    # check if todo item with given id exists. If not, raise exception and return 404 not found response
-    if not todo:
-        raise HTTPException(status_code=404, detail=f"todo item with id {id} not found")
+    # get the address item with the given id
+    address = session.query(models.Address).get(id)
 
-    return todo
+    # check if address item with given id exists. If not, raise exception and return 404 not found response
+    if not address:
+        raise HTTPException(
+            status_code=404, detail=f"address item with id {id} not found")
 
-@app.put("/todo/{id}", response_model=schemas.ToDo)
-def update_todo(id: int, task: str, session: Session = Depends(get_session)):
+    return address
 
-    # get the todo item with the given id
-    todo = session.query(models.ToDo).get(id)
 
-    # update todo item with the given task (if an item with the given id was found)
-    if todo:
-        todo.task = task
+@app.put("/address/{id}", response_model=schemas.Address)
+def update_address(id: int, adr: str, long: float, lat: float, session: Session = Depends(get_session)):
+
+    # get the address item with the given id
+    address = session.query(models.Address).get(id)
+
+    # update address item with the given task (if an item with the given id was found)
+    if address:
+        address.adr = adr
+        address.long = long
+        address.lat = lat
+
         session.commit()
 
-    # check if todo item with given id exists. If not, raise exception and return 404 not found response
-    if not todo:
-        raise HTTPException(status_code=404, detail=f"todo item with id {id} not found")
+    # check if address item with given id exists. If not, raise exception and return 404 not found response
+    if not address:
+        raise HTTPException(
+            status_code=404, detail=f"address item with id {id} not found")
 
-    return todo
+    return address
 
-@app.delete("/todo/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_todo(id: int, session: Session = Depends(get_session)):
 
-    # get the todo item with the given id
-    todo = session.query(models.ToDo).get(id)
+@app.delete("/address/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_address(id: int, session: Session = Depends(get_session)):
 
-    # if todo item with given id exists, delete it from the database. Otherwise raise 404 error
-    if todo:
-        session.delete(todo)
+    # get the address item with the given id
+    address = session.query(models.Address).get(id)
+
+    # if address item with given id exists, delete it from the database. Otherwise raise 404 error
+    if address:
+        session.delete(address)
         session.commit()
     else:
-        raise HTTPException(status_code=404, detail=f"todo item with id {id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"address item with id {id} not found")
 
     return None
 
-@app.get("/todo", response_model = List[schemas.ToDo])
-def read_todo_list(session: Session = Depends(get_session)):
 
-    # get all todo items
-    todo_list = session.query(models.ToDo).all()
+@app.get("/address", response_model=List[schemas.Address])
+def read_address_list(session: Session = Depends(get_session)):
 
-    return todo_list
+    # get all address items
+    address_list = session.query(models.Address).all()
+
+    return address_list
+
+
+@app.get("/address/nearby/{id}", response_model=List[schemas.Address])
+def read_nearby_address(id: int, km: float, session: Session = Depends(get_session)):
+    address_list = session.query(models.Address).all()
+    # get all address items
+    address = session.query(models.Address).get(id)
+    address_list.remove(address)
+
+    main_lat, main_long = address.lat, address.lon
+
+    close = []
+    for i in address_list:
+        distance = geopy.distance.geodesic(
+            (i.lat, i.lon), (main_lat, main_long)).km
+        if distance <= km:
+            close.append(i)
+
+    # check if address item with given id exists. If not, raise exception and return 404 not found response
+    if not address:
+        raise HTTPException(
+            status_code=404, detail=f"address item with id {id} not found")
+
+    return close
+    # f'These are the address which are within a {km} radius of the {address.adr} ${address_list}'

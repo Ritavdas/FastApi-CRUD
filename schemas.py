@@ -1,13 +1,16 @@
 from pydantic import BaseModel
 
-# Create ToDo Schema (Pydantic Model)
-class ToDoCreate(BaseModel):
-    task: str
+class AddressCreate(BaseModel):
+    adr: str
+    lat : float
+    lon : float
 
-# Complete ToDo Schema (Pydantic Model)
-class ToDo(BaseModel):
+
+class Address(BaseModel):
     id: int
-    task: str
+    adr: str
+    lat : float
+    lon : float
 
     class Config:
         orm_mode = True

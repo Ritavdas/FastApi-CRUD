@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String,FLOAT
 from database import Base
 
-# Define To Do class inheriting from Base
-class ToDo(Base):
-    __tablename__ = 'todos'
+# Define Address class inheriting from Base
+
+class Address(Base):
+    __tablename__ = 'Address'
     id = Column(Integer, primary_key=True)
-    task = Column(String(256))
+    adr = Column(String(256))
+    lat = Column(FLOAT())
+    lon = Column(FLOAT())
